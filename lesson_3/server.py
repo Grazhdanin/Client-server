@@ -1,12 +1,15 @@
+import logging
 from socket import AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, socket
 import pickle
 import time
+
+from homework.lesson_3.log.server_log_config import logger
 
 s = socket(AF_INET, SOCK_STREAM)
 
 
 def init_socket():
-    s.bind(('', 8777))
+    s.bind(('', 8779))
     s.listen(5)
     s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
@@ -14,7 +17,7 @@ def init_socket():
 def main():
     while True:
         client, addr = s.accept()
-        print('Получен запрос на соединение от %s' % str(addr))
+        logger.info('Получен запрос на соединение от %s' % str(addr))
         data = client.recv(1024)
         response = {
             'time': time.time(),
@@ -31,5 +34,6 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as er:
-        print('The server did not start')
+        logger.error('The server did not start')
+
 

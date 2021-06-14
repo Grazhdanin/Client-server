@@ -2,11 +2,13 @@ from socket import socket, AF_INET, SOCK_STREAM
 import pickle
 import time
 
+from homework.lesson_3.log.client_log_config import logger
+
 s = socket(AF_INET, SOCK_STREAM)
 
 
 def init_socket():
-    s.connect(('localhost', 8777))
+    s.connect(('localhost', 8779))
 
 
 def main():
@@ -20,7 +22,7 @@ def main():
     }
     s.send(pickle.dumps(msg))
     data = s.recv(1024)
-    print('Сообщение от сервера:', pickle.loads(data), 'длинной ', len(data)),
+    logger.info(f"Сообщение от сервера:', {pickle.loads(data)}, 'длинной ', {len(data)}"),
     s.close()
 
 
