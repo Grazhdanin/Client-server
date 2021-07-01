@@ -1,34 +1,94 @@
-from socket import AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, socket
+from socket import AF_INET, SOCK_STREAM, socket
+from time import time
 import pickle
-import time
-
-s = socket(AF_INET, SOCK_STREAM)
 
 
 def init_socket():
-    s.bind(('', 8777))
-    s.listen(5)
-    s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    s = socket(AF_INET, SOCK_STREAM)
+    address = ('', 8989)
+    s.bind(address)
+
+    try:
+        s.listen()
+    except OSError as error:
+        print(f'Инициализация не прошла ошибка: {error}')
+    else:
+        print(f'Сервер запустился.')
+        return s
 
 
-def main():
+def get_request(data: bytes) -> dict:
+
+    request = {}
+    try:
+        request = pickle.loads(data)
+    except pickle.UnpicklingError:
+        print('Не удается распаковать сообщение, полученное от клиента')
+    except TypeError:
+        print('Получил не байтоподобный объект для распаковки')
+    return request
+
+
+def prepare_response(code: int) -> dict:
+
+    alerts = {
+        200: 'OK',
+        202: 'Accepted',
+        400: 'Bad request',
+    }
+    alert = alerts.get(code)
+    result = {'response': code, 'time': time(), 'alert': alert}
+    return result if alert else None
+
+
+def set_response(request: dict) -> bytes:
+
+    actions = {
+        'presence': 200,
+        'stop': 202,
+    }
+
+    try:
+        action = request.get('action')
+    except Exception as error:
+        print(error)
+        return b''
+    code = actions[action] if action else 400
+    try:
+        return pickle.dumps(prepare_response(code))
+    except pickle.PicklingError:
+        print('Не удается упаковать сообщение для отправки клиенту')
+        return b''
+
+
+def process(sock: socket) -> None:
+
+    msg_max_size = 640
+
     while True:
-        client, addr = s.accept()
-        print('Получен запрос на соединение от %s' % str(addr))
-        data = client.recv(1024)
-        response = {
-            'time': time.time(),
-            'response': 200,
-            'alert': 'Hello'
-        }
-        client.send(pickle.dumps(response))
+        conn, _ = sock.accept()
+        try:
+            data = conn.recv(msg_max_size)
+        except OSError as error:
+            print(f'Ошибка: \n{error}')
+        else:
+            request = get_request(data)
+            print(request)
 
-        client.close()
+            response = set_response(request)
+            if response:
+                conn.send(response)
+                conn.close()
+
+            if request['action'] == 'stop':
+                print('Остановка сервера')
+                break
+
+
+def main() -> None:
+    server = init_socket()
+    process(server)
 
 
 if __name__ == '__main__':
-    init_socket()
-    try:
-        main()
-    except Exception as er:
-        print('The server did not start')
+    main()
